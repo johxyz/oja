@@ -64,7 +64,13 @@ class OJSConfig:
     """Handles OJS configuration and credentials"""
     
     def __init__(self):
-        self.env_file = Path('.env')
+        # Store config in user's home directory for global access
+        self.config_dir = Path.home() / '.config' / 'oja'
+        self.env_file = self.config_dir / 'config.env'
+        
+        # Create config directory if it doesn't exist
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        
         self.config = {}
         self.load_config()
     
@@ -140,7 +146,7 @@ class OJSConfig:
                     self.config[key] = new_value
             
             self.save_config()
-            print(f"{Colors.GREEN}✓ Configuration saved to .env{Colors.RESET}")
+            print(f"{Colors.GREEN}✓ Configuration saved to {self.env_file}{Colors.RESET}")
         
         return self.config
 
@@ -1973,8 +1979,15 @@ def main():
     args = parser.parse_args()
     
     # Handle help
-    if args.help or not args.submission_id_or_path:
+    if args.help or (not args.submission_id_or_path and not args.settings):
         show_help()
+        return True
+    
+    # Handle settings-only mode
+    if args.settings and not args.submission_id_or_path:
+        config_manager = OJSConfig()
+        config = config_manager.get_or_prompt_config(force_settings=True)
+        print(f"{Colors.GREEN}✓ Settings configuration complete{Colors.RESET}")
         return True
     
     try:

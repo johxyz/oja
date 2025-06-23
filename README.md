@@ -61,7 +61,7 @@ oja 8661 --debug
 oja 8661 --skip
 
 # Reconfigure settings
-oja 8661 --settings
+oja --settings
 ```
 
 ### Command Options
@@ -83,7 +83,7 @@ On first run, you'll be prompted for:
 - **Username** (your OJS login username)
 - **Password** (your OJS login password)
 
-Configuration is saved to `.env` file for future use.
+Configuration is saved globally to `~/.config/oja/config.env` for use from any directory.
 
 ## File Structure & Naming Conventions
 
@@ -214,7 +214,8 @@ When files already exist online, the tool provides options:
 
 ### Troubleshooting
 - Use `--debug` to see detailed file analysis
-- Check `.env` configuration if connection fails
+- Run `oja --settings` to reconfigure if connection fails (no submission ID needed)
+- Check `~/.config/oja/config.env` for configuration issues
 - Verify submission ID exists and is accessible in OJS
 
 ## Dependencies
@@ -236,7 +237,7 @@ The tool includes error handling for:
 
 ## Security
 
-- Credentials are stored in `.env` file (add to `.gitignore`)
+- Credentials are stored globally in `~/.config/oja/config.env` (separate from your project files)
 - API tokens are used for authentication
 - No sensitive data is logged in normal operation
 - Temporary files are automatically cleaned up

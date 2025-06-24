@@ -19,6 +19,68 @@ A Python tool that combines REST API (file uploads) and Web API (galley creation
 
 ### Setup
 
+#### Ubuntu/Debian Systems
+
+On Ubuntu/Debian systems, use a virtual environment (recommended):
+
+1. Clone this repository:
+```bash
+git clone https://github.com/johxyz/oja
+cd oja
+```
+
+2. Create a virtual environment:
+```bash
+python3 -m venv venv
+```
+
+3. Activate the virtual environment:
+```bash
+source venv/bin/activate
+```
+
+4. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+5. Install the package:
+```bash
+pip install -e .
+```
+
+6. The tool is now available:
+```bash
+oja --help
+```
+
+**Important**: Activate the virtual environment in each new terminal session:
+```bash
+cd /path/to/oja
+source venv/bin/activate
+```
+
+#### Alternative: pipx Installation (Global Access)
+
+If you prefer pipx:
+
+1. Install dependencies individually:
+```bash
+pipx install requests
+pipx install PyMuPDF
+pipx install beautifulsoup4
+pipx install python-dotenv
+```
+
+2. Clone and install the package:
+```bash
+git clone https://github.com/johxyz/oja
+cd oja
+pipx install .
+```
+
+#### Other Systems (Windows, macOS, older Linux distributions)
+
 1. Clone this repository:
 ```bash
 git clone https://github.com/johxyz/oja
@@ -212,7 +274,36 @@ When files already exist online, the tool provides options:
 - Check that all expected files are detected
 - Verify file naming follows the patterns exactly
 
-### Troubleshooting
+### Installation Troubleshooting
+
+#### Ubuntu/Debian: "externally-managed-environment" Error
+If you get the error:
+```
+error: externally-managed-environment
+```
+
+Use the virtual environment as described above. **Do not** use `--break-system-packages`!
+
+#### Python Version Issues
+Make sure Python 3.7+ is installed:
+```bash
+python3 --version
+```
+
+For older versions:
+```bash
+sudo apt update
+sudo apt install python3.8 python3.8-venv python3.8-pip
+```
+
+#### Forgetting Virtual Environment
+If the `oja` command is not found, activate the virtual environment:
+```bash
+cd /path/to/oja
+source venv/bin/activate
+```
+
+### Usage Troubleshooting
 - Use `--debug` to see detailed file analysis
 - Run `oja --settings` to reconfigure if connection fails (no submission ID needed)
 - Check `~/.config/oja/config.env` for configuration issues

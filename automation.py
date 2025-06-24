@@ -119,7 +119,7 @@ class OJSConfig:
                             new_value = current_value
                 elif key == 'OJS_BASE_URL':
                     # Offer default URL
-                    default_url = "https://your-ojs-instance.example.com"
+                    default_url = "https://your-ojs-instance.example.com/journal"
                     if current_value and not force_settings:
                         prompt_text = f"{description} [{current_value}] (press Enter to keep current): "
                         new_value = input(f"{Colors.PURPLE}{Colors.BOLD}? {prompt_text}{Colors.RESET}").strip()
@@ -1959,7 +1959,7 @@ Combines REST API (file uploads) and Web API (galley creation) for automated fil
 
 {Colors.CYAN}{Colors.UNDERLINE}CONFIGURATION:{Colors.RESET}
   On first run, you'll be prompted for:
-  • OJS Base URL (e.g., https://your-ojs-instance.example.com)
+  • OJS Base URL (e.g., https://your-ojs-instance.example.com/journal)
   • API Token (from your OJS user profile)
   • Username and Password (from your OJS user profile)
 

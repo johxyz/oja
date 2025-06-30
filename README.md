@@ -140,7 +140,7 @@ oja --settings
 
 On first run, you'll be prompted for:
 
-- **OJS Base URL** (e.g., `https://your-ojs-instance.example.com`)
+- **OJS Base URL** (e.g., `https://your-ojs-instance.example.com/journal`)
 - **API Token** (from your OJS user profile → API Key)
 - **Username** (your OJS login username)
 - **Password** (your OJS login password)

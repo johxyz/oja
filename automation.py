@@ -661,14 +661,119 @@ class OJSAutomation:
                 if conflicting_figures:
                     conflicts['HTML']['conflicting_figures'] = [f.name for f in conflicting_figures]
         
-        # Check other file types (replication, appendix)
-        for file_list, galley_label, genre_id, description in [
-            (files_found['replication_files'], 'Replication Files', 3, 'Replication file'),
-            (files_found['appendix_files'], 'Online Appendix', 12, 'Appendix file')
-        ]:
+        # Check replication files (original logic)
+        for file_path in files_found['replication_files']:
+            galley_label = 'Replication Files'
             galley_key = galley_label.upper()
-            for file_path in file_list:
-                file_name = file_path.name
+            file_name = file_path.name
+            
+            if galley_key in existing_files_by_galley:
+                existing_names = existing_files_by_galley[galley_key]
+                if any(file_name.lower() == existing or 
+                       file_name.lower() in existing or 
+                       existing in file_name.lower() for existing in existing_names):
+                    if galley_label not in conflicts:
+                        conflicts[galley_label] = {
+                            'local_file': '',
+                            'existing_files': [f['name'] for f in galley_files[galley_label]['files']],
+                            'type': galley_label,
+                            'conflicting_files': []
+                        }
+                    if 'conflicting_files' not in conflicts[galley_label]:
+                        conflicts[galley_label]['conflicting_files'] = []
+                    conflicts[galley_label]['conflicting_files'].append(file_name)
+                else:
+                    new_files.append({
+                        'file': file_path,
+                        'galley_label': galley_label,
+                        'genre_id': 3,
+                        'description': 'Replication file (additional)'
+                    })
+            else:
+                new_files.append({
+                    'file': file_path,
+                    'galley_label': galley_label,
+                    'genre_id': 3,
+                    'description': 'Replication file (new galley)'
+                })
+        
+        # Check appendix files (special logic for numbered galleys)
+        for file_path in files_found['appendix_files']:
+            file_name = file_path.name
+            
+            # Extract appendix number from filename
+            import re
+            match = re.search(r'MOESM(\d+)_ESM\.pdf', file_name, re.IGNORECASE)
+            if match:
+                appendix_num = match.group(1)
+                specific_galley_label = f"Online Appendix {appendix_num}"
+                specific_galley_key = specific_galley_label.upper()
+                
+                # Check if the specific numbered galley exists
+                if specific_galley_key in existing_files_by_galley:
+                    existing_names = existing_files_by_galley[specific_galley_key]
+                    if any(file_name.lower() == existing or 
+                           file_name.lower() in existing or 
+                           existing in file_name.lower() for existing in existing_names):
+                        # File conflicts with its specific numbered galley
+                        if specific_galley_label not in conflicts:
+                            conflicts[specific_galley_label] = {
+                                'local_file': '',
+                                'existing_files': [f['name'] for f in galley_files[specific_galley_label]['files']],
+                                'type': specific_galley_label,
+                                'conflicting_files': []
+                            }
+                        if 'conflicting_files' not in conflicts[specific_galley_label]:
+                            conflicts[specific_galley_label]['conflicting_files'] = []
+                        conflicts[specific_galley_label]['conflicting_files'].append(file_name)
+                    else:
+                        # File doesn't conflict, can be added to existing numbered galley
+                        new_files.append({
+                            'file': file_path,
+                            'galley_label': specific_galley_label,
+                            'genre_id': 12,
+                            'description': 'Appendix file (additional)'
+                        })
+                else:
+                    # Check if it conflicts with the original "Online Appendix" galley
+                    original_galley_key = 'ONLINE APPENDIX'
+                    if original_galley_key in existing_files_by_galley:
+                        existing_names = existing_files_by_galley[original_galley_key]
+                        if any(file_name.lower() == existing or 
+                               file_name.lower() in existing or 
+                               existing in file_name.lower() for existing in existing_names):
+                            # File conflicts with original galley
+                            if 'Online Appendix' not in conflicts:
+                                conflicts['Online Appendix'] = {
+                                    'local_file': '',
+                                    'existing_files': [f['name'] for f in galley_files['Online Appendix']['files']],
+                                    'type': 'Online Appendix',
+                                    'conflicting_files': []
+                                }
+                            if 'conflicting_files' not in conflicts['Online Appendix']:
+                                conflicts['Online Appendix']['conflicting_files'] = []
+                            conflicts['Online Appendix']['conflicting_files'].append(file_name)
+                        else:
+                            # No conflict, will create new numbered galley
+                            new_files.append({
+                                'file': file_path,
+                                'galley_label': specific_galley_label,
+                                'genre_id': 12,
+                                'description': 'Appendix file (new galley)'
+                            })
+                    else:
+                        # No original galley, will create new numbered galley
+                        new_files.append({
+                            'file': file_path,
+                            'galley_label': specific_galley_label,
+                            'genre_id': 12,
+                            'description': 'Appendix file (new galley)'
+                        })
+            else:
+                # Fallback for files that don't match the expected pattern
+                galley_label = 'Online Appendix'
+                galley_key = galley_label.upper()
+                
                 if galley_key in existing_files_by_galley:
                     existing_names = existing_files_by_galley[galley_key]
                     if any(file_name.lower() == existing or 
@@ -688,15 +793,15 @@ class OJSAutomation:
                         new_files.append({
                             'file': file_path,
                             'galley_label': galley_label,
-                            'genre_id': genre_id,
-                            'description': f'{description} (additional)'
+                            'genre_id': 12,
+                            'description': 'Appendix file (additional)'
                         })
                 else:
                     new_files.append({
                         'file': file_path,
                         'galley_label': galley_label,
-                        'genre_id': genre_id,
-                        'description': f'{description} (new galley)'
+                        'genre_id': 12,
+                        'description': 'Appendix file (new galley)'
                     })
         
         return {
@@ -1468,17 +1573,52 @@ def create_overwrite_plan(files_found, existing_galleys, conflicts):
         if file_list:
             # Special handling for appendix files - create separate galleys if multiple files
             if galley_label == 'Online Appendix' and len(file_list) > 1:
+                # Check for existing unnumbered "Online Appendix" galley that would cause naming inconsistency
+                if 'ONLINE APPENDIX' in galley_map:
+                    print(f"\n  {Colors.YELLOW}⚠ WARNING: Inconsistent appendix galley naming detected{Colors.RESET}")
+                    print(f"    {Colors.YELLOW}• Existing: 'Online Appendix' galley (unnumbered){Colors.RESET}")
+                    print(f"    {Colors.YELLOW}• Will create: 'Online Appendix 1', 'Online Appendix 2', etc. (numbered){Colors.RESET}")
+                    print(f"    {Colors.YELLOW}• This creates inconsistent naming that can't be fixed automatically{Colors.RESET}")
+                    print(f"    {Colors.YELLOW}• Manual fix needed: Remove the existing 'Online Appendix' galley via OJS dashboard{Colors.RESET}")
+                
                 print(f"  {Colors.GREEN}{len(file_list)} files to {galley_label} galleys (creating separate galleys){Colors.RESET}")
-                for i, file_path in enumerate(file_list):
-                    # Create a unique galley label for each appendix file
-                    individual_galley_label = f"{galley_label} {i + 1}"
+                for file_path in file_list:
+                    # Extract appendix number from filename (e.g., MOESM3_ESM.pdf -> 3)
+                    filename = file_path.name
+                    import re
+                    match = re.search(r'MOESM(\d+)_ESM\.pdf', filename, re.IGNORECASE)
+                    if match:
+                        appendix_num = match.group(1)
+                        individual_galley_label = f"{galley_label} {appendix_num}"
+                    else:
+                        # Fallback to sequential numbering if pattern doesn't match
+                        individual_galley_label = f"{galley_label} {len(plan['uploads']) + 1}"
+                    
                     individual_galley_key = individual_galley_label.upper()
                     
                     if individual_galley_key not in galley_map:
                         plan['galleys_to_create'].append(individual_galley_label)
                         print(f"  {Colors.YELLOW}Will create {individual_galley_label} galley{Colors.RESET}")
+                    elif individual_galley_label in conflicts and 'conflicting_files' in conflicts[individual_galley_label]:
+                        print(f"  {Colors.RED}Will delete existing {individual_galley_label} file(s) and upload new ones{Colors.RESET}")
+                        for existing_file in conflicts[individual_galley_label]['conflicting_files']:
+                            plan['deletions'].append({
+                                'galley_label': individual_galley_label,
+                                'filename': existing_file,
+                                'type': 'main'
+                            })
                     else:
                         print(f"  {Colors.GREEN}Using existing {individual_galley_label} galley{Colors.RESET}")
+                    
+                    # Check if this file conflicts with the original unnumbered "Online Appendix" galley
+                    if ('Online Appendix' in conflicts and 'conflicting_files' in conflicts['Online Appendix'] and 
+                        filename in conflicts['Online Appendix']['conflicting_files']):
+                        print(f"  {Colors.RED}Will delete {filename} from original Online Appendix galley{Colors.RESET}")
+                        plan['deletions'].append({
+                            'galley_label': 'Online Appendix',
+                            'filename': filename,
+                            'type': 'main'
+                        })
                     
                     print(f"    - {Colors.GREEN}{file_path.name}{Colors.RESET}")
                     plan['uploads'].append({
@@ -1522,10 +1662,25 @@ def create_overwrite_plan(files_found, existing_galleys, conflicts):
         for deletion in sorted_deletions:
             print(f"    - {Colors.RED}{deletion['filename']} (from {deletion['galley_label']}){Colors.RESET}")
     
+    # Sort galleys to be created for proper execution order
+    import re
+    plan['galleys_to_create'] = sorted(plan['galleys_to_create'], key=lambda x: (
+        # Sort appendix galleys numerically, others alphabetically
+        (1, int(re.search(r'Online Appendix (\d+)', x).group(1))) if 'Online Appendix' in x and re.search(r'Online Appendix (\d+)', x) else (0, x)
+    ))
+    
+    # Sort uploads for consistent order too
+    plan['uploads'] = sorted(plan['uploads'], key=lambda x: (
+        # Sort by galley label, with appendix galleys sorted numerically
+        (1, int(re.search(r'Online Appendix (\d+)', x['galley_label']).group(1))) if 'Online Appendix' in x['galley_label'] and re.search(r'Online Appendix (\d+)', x['galley_label']) else (0, x['galley_label']),
+        natural_sort_key(x['file'].name)
+    ))
+    
     return plan
 
 def create_selective_upload_plan(new_files, can_add_to_existing, existing_galleys):
     """Create upload plan for only non-conflicting files"""
+    import re  # For sorting appendix galleys numerically
     plan = {
         'galleys_to_create': [],
         'uploads': []
@@ -1536,13 +1691,46 @@ def create_selective_upload_plan(new_files, can_add_to_existing, existing_galley
     
     print(f"\n{Colors.CYAN}{Colors.UNDERLINE}Selective Upload Plan{Colors.RESET}")
     
-    # Add regular new files
-    galleys_needed = set()
+    # Group new files by galley and handle multiple appendix files
+    files_by_galley = {}
     for file_info in new_files:
         galley_label = file_info['galley_label']
-        if galley_label.upper() not in galley_map:
-            galleys_needed.add(galley_label)
-        plan['uploads'].append(file_info)
+        if galley_label not in files_by_galley:
+            files_by_galley[galley_label] = []
+        files_by_galley[galley_label].append(file_info)
+    
+    # Add regular new files, with special handling for multiple appendix files
+    galleys_needed = set()
+    for galley_label, file_list in files_by_galley.items():
+        # Special handling for multiple appendix files - create separate galleys
+        if galley_label == 'Online Appendix' and len(file_list) > 1:
+            for file_info in file_list:
+                # Extract appendix number from filename (e.g., MOESM3_ESM.pdf -> 3)
+                filename = file_info['file'].name
+                import re
+                match = re.search(r'MOESM(\d+)_ESM\.pdf', filename, re.IGNORECASE)
+                if match:
+                    appendix_num = match.group(1)
+                    individual_galley_label = f"{galley_label} {appendix_num}"
+                else:
+                    # Fallback to sequential numbering if pattern doesn't match
+                    individual_galley_label = f"{galley_label} {len(plan['uploads']) + 1}"
+                
+                individual_galley_key = individual_galley_label.upper()
+                
+                if individual_galley_key not in galley_map:
+                    galleys_needed.add(individual_galley_label)
+                
+                # Create new file_info with updated galley label
+                updated_file_info = file_info.copy()
+                updated_file_info['galley_label'] = individual_galley_label
+                plan['uploads'].append(updated_file_info)
+        else:
+            # Original logic for single files or non-appendix files
+            for file_info in file_list:
+                if file_info['galley_label'].upper() not in galley_map:
+                    galleys_needed.add(file_info['galley_label'])
+                plan['uploads'].append(file_info)
     
     # Add files that can be added to existing galleys
     for galley_label, add_info in can_add_to_existing.items():
@@ -1565,8 +1753,18 @@ def create_selective_upload_plan(new_files, can_add_to_existing, existing_galley
                     'is_dependent': True  # Mark as dependent file
                 })
     
-    # Add galleys that need to be created
-    plan['galleys_to_create'] = list(galleys_needed)
+    # Add galleys that need to be created - sort them for proper execution order
+    plan['galleys_to_create'] = sorted(list(galleys_needed), key=lambda x: (
+        # Sort appendix galleys numerically, others alphabetically
+        (1, int(re.search(r'Online Appendix (\d+)', x).group(1))) if 'Online Appendix' in x and re.search(r'Online Appendix (\d+)', x) else (0, x)
+    ))
+    
+    # Sort uploads for consistent order too
+    plan['uploads'] = sorted(plan['uploads'], key=lambda x: (
+        # Sort by galley label, with appendix galleys sorted numerically
+        (1, int(re.search(r'Online Appendix (\d+)', x['galley_label']).group(1))) if 'Online Appendix' in x['galley_label'] and re.search(r'Online Appendix (\d+)', x['galley_label']) else (0, x['galley_label']),
+        natural_sort_key(x['file'].name)
+    ))
     
     # Show what will be done
     if plan['galleys_to_create']:
@@ -1660,13 +1858,64 @@ def show_final_status(automation, submission_id):
     
     print(f"{Colors.GREEN}└── Submission {submission_id} (Online){Colors.RESET}")
     
-    galley_labels = list(galley_files.keys())
-    for i, (galley_label, galley_info) in enumerate(galley_files.items()):
+    # Sort galleys in a logical order: PDF, HTML, Replication Files, then Online Appendix in numerical order
+    def galley_sort_key(item):
+        galley_label = item[0]
+        
+        # Define priority order
+        if galley_label == 'PDF':
+            return (1, 0, galley_label)
+        elif galley_label == 'HTML':
+            return (2, 0, galley_label)
+        elif galley_label == 'Replication Files':
+            return (3, 0, galley_label)
+        elif galley_label.startswith('Online Appendix'):
+            # Extract number from "Online Appendix" or "Online Appendix N"
+            import re
+            if galley_label == 'Online Appendix':
+                # Handle the original naming - figure out which appendix this actually is
+                files = item[1]['files']
+                if files:
+                    filename = files[0]['name']
+                    match = re.search(r'MOESM(\d+)_ESM\.pdf', filename, re.IGNORECASE)
+                    if match:
+                        appendix_num = int(match.group(1))
+                        return (4, appendix_num, galley_label)
+                return (4, 999, galley_label)  # Fallback for unknown
+            else:
+                # Extract number from "Online Appendix N"
+                match = re.search(r'Online Appendix (\d+)', galley_label)
+                if match:
+                    appendix_num = int(match.group(1))
+                    return (4, appendix_num, galley_label)
+                return (4, 999, galley_label)  # Fallback
+        else:
+            return (5, 0, galley_label)  # Other galleys at the end
+    
+    # Sort the galley items
+    sorted_galley_items = sorted(galley_files.items(), key=galley_sort_key)
+    galley_labels = [item[0] for item in sorted_galley_items]
+    
+    for i, (galley_label, galley_info) in enumerate(sorted_galley_items):
         is_last_galley = i == len(galley_labels) - 1
         galley_connector = "└──" if is_last_galley else "├──"
         
         files = galley_info['files']
-        print(f"    {galley_connector} {Colors.GREEN}{galley_label} Galley{Colors.RESET} {Colors.CYAN}({len(files)} files){Colors.RESET}")
+        
+        # Improve display name for the original "Online Appendix" galley
+        display_label = galley_label
+        if galley_label == 'Online Appendix' and files:
+            filename = files[0]['name']
+            import re
+            match = re.search(r'MOESM(\d+)_ESM\.pdf', filename, re.IGNORECASE)
+            if match:
+                appendix_num = match.group(1)
+                display_label = f"Online Appendix {appendix_num}"
+                # Debug info
+                if debug_mode:
+                    print(f"{debug_indent}{Colors.GRAY}Note: Original galley name 'Online Appendix' displayed as 'Online Appendix {appendix_num}' for consistency{Colors.RESET}")
+        
+        print(f"    {galley_connector} {Colors.GREEN}{display_label} Galley{Colors.RESET} {Colors.CYAN}({len(files)} files){Colors.RESET}")
         
         # Debug info for this galley
         if debug_mode:

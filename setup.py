@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="oja",
-    version="1.0.0",
+    version="1.0.1",
     py_modules=["automation"],
     install_requires=[
         "requests>=2.32.0",

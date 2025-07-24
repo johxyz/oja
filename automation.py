@@ -1466,30 +1466,53 @@ def create_overwrite_plan(files_found, existing_galleys, conflicts):
         (files_found['appendix_files'], 'Online Appendix', 12, 'Appendix file')
     ]:
         if file_list:
-            galley_key = galley_label.upper()
-            if galley_key not in galley_map:
-                plan['galleys_to_create'].append(galley_label)
-                print(f"  {Colors.YELLOW}Will create {galley_label} galley{Colors.RESET}")
-            elif galley_label in conflicts and 'conflicting_files' in conflicts[galley_label]:
-                print(f"  {Colors.RED}Will delete existing {galley_label} file(s) and upload new ones{Colors.RESET}")
-                for existing_file in conflicts[galley_label]['conflicting_files']:
-                    plan['deletions'].append({
-                        'galley_label': galley_label,
-                        'filename': existing_file,
-                        'type': 'main'
+            # Special handling for appendix files - create separate galleys if multiple files
+            if galley_label == 'Online Appendix' and len(file_list) > 1:
+                print(f"  {Colors.GREEN}{len(file_list)} files to {galley_label} galleys (creating separate galleys){Colors.RESET}")
+                for i, file_path in enumerate(file_list):
+                    # Create a unique galley label for each appendix file
+                    individual_galley_label = f"{galley_label} {i + 1}"
+                    individual_galley_key = individual_galley_label.upper()
+                    
+                    if individual_galley_key not in galley_map:
+                        plan['galleys_to_create'].append(individual_galley_label)
+                        print(f"  {Colors.YELLOW}Will create {individual_galley_label} galley{Colors.RESET}")
+                    else:
+                        print(f"  {Colors.GREEN}Using existing {individual_galley_label} galley{Colors.RESET}")
+                    
+                    print(f"    - {Colors.GREEN}{file_path.name}{Colors.RESET}")
+                    plan['uploads'].append({
+                        'file': file_path,
+                        'galley_label': individual_galley_label,
+                        'genre_id': genre_id,
+                        'description': description
                     })
             else:
-                print(f"  {Colors.GREEN}Using existing {galley_label} galley{Colors.RESET}")
-            
-            print(f"  {Colors.GREEN}{len(file_list)} files to {galley_label} galley{Colors.RESET}")
-            for file_path in file_list:
-                print(f"    - {Colors.GREEN}{file_path.name}{Colors.RESET}")
-                plan['uploads'].append({
-                    'file': file_path,
-                    'galley_label': galley_label,
-                    'genre_id': genre_id,
-                    'description': description
-                })
+                # Original logic for single files or non-appendix files
+                galley_key = galley_label.upper()
+                if galley_key not in galley_map:
+                    plan['galleys_to_create'].append(galley_label)
+                    print(f"  {Colors.YELLOW}Will create {galley_label} galley{Colors.RESET}")
+                elif galley_label in conflicts and 'conflicting_files' in conflicts[galley_label]:
+                    print(f"  {Colors.RED}Will delete existing {galley_label} file(s) and upload new ones{Colors.RESET}")
+                    for existing_file in conflicts[galley_label]['conflicting_files']:
+                        plan['deletions'].append({
+                            'galley_label': galley_label,
+                            'filename': existing_file,
+                            'type': 'main'
+                        })
+                else:
+                    print(f"  {Colors.GREEN}Using existing {galley_label} galley{Colors.RESET}")
+                
+                print(f"  {Colors.GREEN}{len(file_list)} files to {galley_label} galley{Colors.RESET}")
+                for file_path in file_list:
+                    print(f"    - {Colors.GREEN}{file_path.name}{Colors.RESET}")
+                    plan['uploads'].append({
+                        'file': file_path,
+                        'galley_label': galley_label,
+                        'genre_id': genre_id,
+                        'description': description
+                    })
     
     # Show deletion summary
     if plan['deletions']:

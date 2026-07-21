@@ -167,6 +167,11 @@ class OJSAutomation:
             'Accept': 'application/json',
             'User-Agent': 'OJS-Enhanced-Automation/1.0'
         })
+        # Some servers do not forward the Authorization header to PHP (common
+        # with PHP-FPM/CGI unless CGIPassAuth is on), which makes every API
+        # call fail with 401. Sending the token as a query parameter as well
+        # keeps us working in that case; OJS accepts either form.
+        self.rest_session.params = {'apiToken': self.api_token}
         
         # Web API session
         self.web_session = requests.Session()
@@ -185,8 +190,14 @@ class OJSAutomation:
         """Test REST API connection"""
         try:
             response = self.rest_session.get(f"{self.base_url}/api/v1/submissions")
-            if response.status_code in [200, 401]:
+            if response.status_code == 200:
                 return True
+            # 401 used to be treated as success here. Since OJS 3.5 every
+            # authentication and authorization failure returns 401, so
+            # accepting it hid dead tokens until a later call failed.
+            self.debug_print(
+                f"{Colors.GRAY}[DEBUG] REST API test failed: "
+                f"HTTP {response.status_code} - {response.text[:200]}{Colors.RESET}")
             return False
         except Exception:
             return False
@@ -250,11 +261,14 @@ class OJSAutomation:
         try:
             url = f"{self.base_url}/api/v1/submissions/{submission_id}"
             response = self.rest_session.get(url)
-            
+
             if response.status_code == 200:
                 return response.json()
+            print(f"{Colors.YELLOW}⚠ Submission request returned HTTP "
+                  f"{response.status_code}: {response.text[:200]}{Colors.RESET}")
             return None
-        except Exception:
+        except Exception as e:
+            print(f"{Colors.YELLOW}⚠ Submission request failed: {e}{Colors.RESET}")
             return None
     
     def get_existing_galleys(self, submission_id):
@@ -280,7 +294,7 @@ class OJSAutomation:
         
         return submission, current_pub_id, galleys
     
-    def create_galley_web_api(self, submission_id, publication_id, label, locale="en_US"):
+    def create_galley_web_api(self, submission_id, publication_id, label, locale="en"):
         """Create galley using Web API"""
         if not self.web_login():
             return False
@@ -323,6 +337,9 @@ class OJSAutomation:
             form_data = {
                 'csrfToken': csrf_token,
                 'label': label,
+                # ArticleGalleyForm reads 'locale'; 'galleyLocale' is kept for
+                # compatibility with older OJS versions. Extra vars are ignored.
+                'locale': locale,
                 'galleyLocale': locale
             }
             
